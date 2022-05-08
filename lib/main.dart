@@ -1,8 +1,3 @@
-//  Step to integrate cashfree
-// 1- create chashfree account and get app Id, and secret key
-// 2 - 
-
-
 import 'dart:convert';
 import 'dart:math';
 
@@ -89,11 +84,11 @@ class _HomeState extends State<Home> {
                   'orderAmount': amount,
                   'orderId': '$orderId',
                   'orderCurrency': 'INR',
-                  'customerName': 'ARY',
-                  'customerPhone': '9012345678',
-                  'customerEmail': 'ary@gmail.com',
+                  'customerName': '<Customer Name>',
+                  'customerPhone': '<Customer Phone>',
+                  'customerEmail': '<Customer Email>',
                   'tokenData': tokenData,
-                  'appId': '160073684d17e325cb18d7b158370061',
+                  'appId': '<App Id>',
                 };
                 CashfreePGSDK.doPayment(_params).then((value) {
                   print(value);
@@ -127,8 +122,8 @@ class _HomeState extends State<Home> {
       Uri.https("test.cashfree.com", "api/v2/cftoken/order"),
       headers: <String, String>{
         'Content-Type': 'application/json',
-        'x-client-id': "160073684d17e325cb18d7b158370061",
-        'x-client-secret': "414934a7a49ca8d107031a2820656cac28e7b024",
+        'x-client-id': "<App Id>",
+        'x-client-secret': "<App Secret>",
       },
       body: jsonEncode(
         {
