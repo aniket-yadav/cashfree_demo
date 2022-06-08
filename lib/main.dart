@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:cashfree_pg/cashfree_pg.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 void main() {
+  HttpOverrides.global = MyHttpOverrides();
   runApp(const MyApp());
 }
 
@@ -29,6 +31,23 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+/*
+hey everyone , in this video we are going to see how to verify cashfree payment signature
+i will start from where our cashfree integration video ended.
+so to verify signature  , you will get the codes in cashfree documentation
+as you see there are many languages available to verify 
+and remember this verify should happen at backend
+in this video we are going to use php code
+i have just copied there code 
+in my localhost i am going to call these php code
+so let's write code to call our php code for verification of signature
+
+that's all you have to do to verify signature
+thanks for watching
+
+
+*/
+
   final TextEditingController _amountController = TextEditingController();
   @override
   Widget build(BuildContext context) {
@@ -36,7 +55,7 @@ class _HomeState extends State<Home> {
       appBar: AppBar(
         title: const FittedBox(
           child: Text(
-            "CashFree Payment gateway integration",
+            "CashFree Payment signature verification",
           ),
         ),
       ),
@@ -67,7 +86,7 @@ class _HomeState extends State<Home> {
               FocusScope.of(context).requestFocus(FocusNode());
               final amount = _amountController.text.trim();
               if (amount.isEmpty) {
-                 ScaffoldMessenger.of(context).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text("Enter amount"),
                   ),
@@ -75,30 +94,31 @@ class _HomeState extends State<Home> {
                 return;
               }
 
-              num orderId = Random().nextInt(1000) ;
+              num orderId = Random().nextInt(1000);
 
               num payableAmount = num.parse(amount);
-              getAccessToken(payableAmount,orderId).then((tokenData) {
+              getAccessToken(payableAmount, orderId).then((tokenData) {
                 Map<String, String> _params = {
                   'stage': 'TEST',
                   'orderAmount': amount,
                   'orderId': '$orderId',
                   'orderCurrency': 'INR',
-                  'customerName': '<Customer Name>',
-                  'customerPhone': '<Customer Phone>',
-                  'customerEmail': '<Customer Email>',
+                  'customerName': 'ARY',
+                  'customerPhone': '9012345678',
+                  'customerEmail': 'ary@gmail.com',
                   'tokenData': tokenData,
-                  'appId': '<App Id>',
+                  'appId': '160073684d17e325cb18d7b158370061',
                 };
                 CashfreePGSDK.doPayment(_params).then((value) {
-                  print(value);
                   if (value != null) {
+                    //  on success of our payment we are going to verify
                     if (value['txStatus'] == 'SUCCESS') {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Payment Success"),
-                        ),
-                      );
+                      verifySignature(value);// pass response of doPayment to verifySignature funtion
+                      // ScaffoldMessenger.of(context).showSnackBar(
+                      //   const SnackBar(
+                      //     content: Text("Payment Success"),
+                      //   ),
+                      // );
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -116,14 +136,64 @@ class _HomeState extends State<Home> {
     );
   }
 
-//  
-  Future<String> getAccessToken(num amount,num orderId) async {
+  verifySignature(Map<dynamic, dynamic> value) async {
+    Map<String, dynamic> body = {
+      "txStatus": value['txStatus'],
+      "orderAmount": value['orderAmount'],
+      "paymentMode": value['paymentMode'],
+      "orderId": value['orderId'],
+      "txTime": value['txTime'],
+      "signature": value['signature'],
+      "txMsg": value['txMsg'],
+      "type": value['type'],
+      "referenceId": value[
+          'referenceId'], // these values you will get in response of payment success
+    };
+
+//  it's a POST url encoded request 
+//  below codes are for that
+//  url encoded request
+    var parts = [];
+    body.forEach((key, value) {
+      parts.add('${Uri.encodeQueryComponent(key)}='
+          '${Uri.encodeQueryComponent(value)}');
+    });
+    var formData = parts.join('&');
+    var res = await http.post(
+      Uri.https(
+        "192.168.72.76",// my ip address , localhost
+        "signature_verify.php",
+      ),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded", // urlencoded 
+      },
+      body: formData,
+    );
+
+    if (res.statusCode == 200) {
+      //  on success of api call we are checking if signature matched or not 
+      //  if response is true then it matched
+      //  else not match
+      if (res.body == 'true') {
+        //  on match we are showing this snackbar , you have to do your action here
+        //  like after purchase functionalities 
+        //  let's run this code
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Payment Success"),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String> getAccessToken(num amount, num orderId) async {
     var res = await http.post(
       Uri.https("test.cashfree.com", "api/v2/cftoken/order"),
       headers: <String, String>{
         'Content-Type': 'application/json',
-        'x-client-id': "<App Id>",
-        'x-client-secret': "<App Secret>",
+        'x-client-id': "160073684d17e325cb18d7b158370061",
+        'x-client-secret': "414934a7a49ca8d107031a2820656cac28e7b024",
       },
       body: jsonEncode(
         {
@@ -140,5 +210,14 @@ class _HomeState extends State<Home> {
       }
     }
     return '';
+  }
+}
+
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
   }
 }
